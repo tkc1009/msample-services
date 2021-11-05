@@ -1,0 +1,70 @@
+version: '3'
+services:
+  postgres:
+    image: postgres:12.2
+    ports:
+      - 5432:5432
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=library
+    volumes:
+      - /c/workspace/onlibrary/onlibrary-services/postgres/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
+      # - type: volume
+      #   source: /${PWD}/postgres/docker-entrypoint-initdb.d
+      #   target: /docker-entrypoint-initdb.d
+    networks:
+      - onlibrary-network
+    deploy:
+      replicas: 1
+
+  pgadmin:
+    image: dpage/pgadmin4
+    ports:
+      - 5480:80
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=pgadmin@pgadmin.com
+      - PGADMIN_DEFAULT_PASSWORD=pgadmin@pgadmin.com
+    deploy:
+      replicas: 1
+  
+  spboot:
+    image: gradle:jdk11
+    ports:
+      - 8080:8080
+    depends_on:
+      - postgres
+    environment:
+      - DATABASE=postgres
+    command: >
+      bash -c "
+      git clone https://github.com/tkc1009/onlibrary-backend.git &&
+      cd ./* &&
+      gradle bootRun
+      "
+    networks:
+      - onlibrary-network
+    deploy:
+      replicas: 1
+
+  elasticmq:
+    image: softwaremill/elasticmq
+    ports:
+      - 9324:9324
+      - 9325:9325
+    volumes:
+      - /c/workspace/onlibrary/onlibrary-services/elasticmq/elasticmq.conf://opt/elasticmq.conf
+    networks:
+      - onlibrary-network
+    deploy:
+      replicas: 1
+
+networks:
+  onlibrary-network:
+
+# volumes:
+#   postgres-volume:
+#     driver_opts:
+#       type: none
+#       device: ${PWD}/postgres/docker-entrypoint-initdb.d
+#       o: bind
